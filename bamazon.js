@@ -2,6 +2,8 @@ var mysql = require("mysql");
 
 var inquirer = require("inquirer");
 
+var Table = require('cli-table');
+
 
 let chosenItem;
 let myQuant;
@@ -19,24 +21,17 @@ function menuQ(){
         if (answer.menuMain === "SHOP") {
           buy();
         }
-        else {
+        else if (answer.menuMain === 'SELL') {
           
           post();
         }
       });
 }
 
-// function menuQ2(){
 
-// }
 
-// function runProgram() {
 
-// }
 
-// function cancel(){
-
-// }
  
 function post() {
     //Prompts to determine what the item will be
@@ -44,7 +39,7 @@ function post() {
         {
           name: "item",
           type: "input",
-          message: "What is the item you would like to sell ?"
+          message: "What is the item you would like to sell ?",
         },
         {
           name: "category",
@@ -112,26 +107,42 @@ connection.connect(function(err) {
   menuQ();
 });
 
+function drawT(results) {
 
+  var table = new Table({
+    head: ['ID', 'Item', 'Category', 'Price', 'Quantity Available']
+    , colWidths: [10, 20, 20, 10, 16]
+  });
+
+  for (var i = 0; i < results.length; i++) {
+
+    //  console.log(results);
+    table.push(
+      [results[i].id, results[i].item_name, results[i].category, results[i].price, results[i].quantity]
+    );
+  }
+  console.log(table.toString());
+}
 
 function buy() {
   // query the database for all items
   connection.query("SELECT * FROM buy", function(err, results) {
     if (err) throw err;
     // once you have the items, prompt the user for which they'd like to bid on
-    inquirer
-      .prompt([
+    inquirer.prompt([
         {
           name: "choice",
           type: "rawlist",
-          message:" Look What I Have !!",
+          message:" Look What I Have !!", 
           choices: function() {
             var choiceArray = [];
             for (var i = 0; i < results.length; i++) {
               choiceArray.push(results[i].item_name);
             }
+            drawT(results);
             return choiceArray;
-          },
+          }
+          
         },
         {
           name: "howMany",
@@ -143,12 +154,11 @@ function buy() {
               return true;
               // readAnreadAndCheck(answers.howMany);
             }
-            
+           
             console.log('Please enter a number for the amount');
             return false;
           }
           
-
         },
         {
           name: "bid",
@@ -159,23 +169,20 @@ function buy() {
       ])
       .then(function(answer) {
         // get the information of the chosen item
-        console.log('huh?');
+      
         for (var i = 0; i < results.length; i++) {
           if (results[i].item_name === answer.choice) {
             chosenItem = results[i];
+       
             myQuant = answer.howMany;
-
-            // readAndCheck(chosenItem.quantity);
-
            
-            readAndCheck(chosenItem.item_name, myQuant);
-            if(chosenItem.quantity > 0) {
-            deleteQuant(chosenItem.id, chosenItem.item_name, chosenItem.quantity, myQuant);
-            }
+            readAndCheck(chosenItem.item_name, myQuant)
+            // if(chosenItem.quantity > 0 && chosenItem.quantity > myQuant) {
+            
+            
           
           }
         }
-        
         // run the initial prompt again
       
       });
@@ -194,25 +201,26 @@ function deleteQuant(arg, arg2, total, quant){
     ],
     
     function (err, res) {
-      if(quantity < total-quant){
-        console.log('We dont have that many !!');
-        menuQ();
-      }
-      quant -= 1;
-      console.log((quant+1) + ' ' + arg2 + " have been added to your cart!\n");
-      if(quantity === 0){
-        deleteRow(arg);
-      }
-      menuQ();
+       
+      console.log((quant) + ' ' + arg2 + " have been added to your cart!\n");
+      // if(quantity === 0){
+      //   deleteRow(arg);
+      // }  
+      deleteRow();
+       menuQ();
+       
+        
+     
+      
     });
-
 }
 
-function deleteRow(arg) {
-  connection.query("DELETE FROM buy WHERE ?", { id: arg },
+
+function deleteRow() {
+  connection.query("DELETE FROM buy WHERE ?",  { quantity: 0 },
     function (err, res) {
       console.log(" You got all the things !!\n");
-      menuQ();
+      // menuQ();
     });
 }
 
@@ -224,11 +232,12 @@ function readAndCheck(arg, arg2) {
 
     if(arg2 > res[0].quantity) {
       console.log('We do not have that many');      
+      menuQ();
+    } else {
+      deleteQuant(chosenItem.id, chosenItem.item_name, chosenItem.quantity, arg2);
     }
   
-   
-    // connection.end();
   });
-  menuQ();
+
 }
 
